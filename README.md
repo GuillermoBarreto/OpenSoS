@@ -24,6 +24,7 @@ Miles de colaboradores
 Datos abiertos
 Integración con ONG
 Integración con gobiernos y universidades
+
 4. Principios
 Open Source First
 Community Driven
