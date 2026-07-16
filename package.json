@@ -1,0 +1,10 @@
+{
+  "name": "open-sos-tools",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Tooling for OpenSoS including a daily project generator.",
+  "type": "module",
+  "scripts": {
+    "generate": "node tools/daily-project-generator.js"
+  }
+}
