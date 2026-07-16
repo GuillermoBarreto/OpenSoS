@@ -1,40 +1,43 @@
 # OpenSoS
 OpenSoS Master Plan
-1. Visión
 
-OpenSoS (Open Source for Society) es una plataforma open source diseñada para ayudar a comunidades a reportar, verificar y visualizar problemas públicos, emergencias y necesidades humanitarias mediante datos colaborativos.
+1. Vision
 
-2. Misión
+OpenSoS (Open Source for Society) is an open source platform designed to help communities report, verify, and visualize public issues, emergencies, and humanitarian needs through collaborative data.
 
-Crear la plataforma colaborativa más confiable del mundo para reportar problemas públicos utilizando datos abiertos, verificación comunitaria y tecnología open source.
+2. Mission
 
-3. Objetivos
-Corto plazo
-MVP funcional
-Comunidad en GitHub
-Primera API
-Primer mapa
-Mediano plazo
-Aplicación móvil
-API pública
-Dashboard
-Largo plazo
-Múltiples países
-Miles de colaboradores
-Datos abiertos
-Integración con ONG
-Integración con gobiernos y universidades
+Build the world's most trusted collaborative platform for reporting public issues using open data, community verification, and open source technology.
 
-4. Principios
-Open Source First
-Community Driven
-Privacy First
-Verified Information
-Transparency
-Accessibility
-Simplicity
+3. Goals
+Short term
+- Functional MVP
+- GitHub community
+- First API
+- First map
 
-Que es OpenVE?
-Cual es su mision?
-Como Instalarlo?
-Como contribuir
+Medium term
+- Mobile application
+- Public API
+- Dashboard
+
+Long term
+- Multiple countries
+- Thousands of contributors
+- Open data
+- Integration with NGOs
+- Integration with governments and universities
+
+4. Principles
+- Open Source First
+- Community Driven
+- Privacy First
+- Verified Information
+- Transparency
+- Accessibility
+- Simplicity
+
+What is OpenSoS?
+What is its mission?
+How to install it?
+How to contribute
