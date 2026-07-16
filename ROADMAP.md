@@ -1,6 +1,6 @@
 Sprint 0
 
-Repositorio
+Repository
 
 ↓
 
@@ -18,25 +18,25 @@ Frontend
 
 Sprint 3
 
-CRUD Reportes
+CRUD Reports
 
 ↓
 
 Sprint 4
 
-Mapa
+Map
 
 ↓
 
 Sprint 5
 
-Usuarios
+Users
 
 ↓
 
 Sprint 6
 
-Verificación
+Verification
 
 ↓
 
