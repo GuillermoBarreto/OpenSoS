@@ -1,7 +1,8 @@
 {
-  "name": "frontend",
+  "name": "open-sos-frontend",
   "private": true,
   "version": "0.0.0",
+  "description": "OpenSoS React frontend application",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +16,13 @@
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GuillermoBarreto/OpenSoS.git"
+  },
+  "keywords": ["open source", "community", "reporting", "React", "Vite"],
+  "author": "GuillermoBarreto",
+  "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.13.2",

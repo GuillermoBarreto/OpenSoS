@@ -30,6 +30,9 @@ Build the world's most trusted collaborative platform for reporting public issue
 - `backend/` - backend services and API code
 - `docs/` - architecture, deployment, testing, and project documentation
 
+## Documentation
+See the `docs/` folder for architecture, API guidance, database design, deployment, frontend standards, and test strategy.
+
 ## Getting started
 ### Frontend
 ```bash
@@ -40,11 +43,11 @@ npm run dev
 Open `http://localhost:5173` in your browser.
 
 ### Backend
-The `backend/` folder currently contains a Python virtual environment. Add backend dependencies and run instructions when backend services are available.
+The `backend/` folder currently contains a Python virtual environment. Backend services will be added with API and deployment instructions.
 
 ## Contributing
 - Read `CONTRIBUTING.md`
-- Follow the project code of conduct
+- Follow the project code of conduct in `CODE_OF_CONDUCT.md`
 - Open issues and pull requests for new features or fixes
 
 ## License
