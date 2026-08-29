@@ -11,4 +11,12 @@ services:
         value: production
       - key: CORS_ORIGINS
         sync: false
+      - key: AI_PROVIDER
+        sync: false
+      - key: AI_MODEL
+        value: gpt-4.1-mini
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_TIMEOUT_SECONDS
+        value: 20
 

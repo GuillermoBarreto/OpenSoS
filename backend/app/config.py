@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     usgs_sync_seconds: int = 60
     eonet_sync_seconds: int = 900
     gdacs_sync_seconds: int = 900
+    ai_provider: str = ""
+    ai_model: str = "gpt-4.1-mini"
+    ai_api_key: str = ""
+    ai_timeout_seconds: float = 20
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

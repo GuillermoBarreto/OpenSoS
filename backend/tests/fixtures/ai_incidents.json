@@ -1,0 +1,28 @@
+{
+  "earthquake": {
+    "title": "M6.3 earthquake — Honshu, Japan",
+    "type": "EARTHQUAKE",
+    "location": "Honshu, Japan",
+    "metrics": {"magnitude": 6.3, "depthKm": 22, "tsunami": false},
+    "sources": ["USGS"],
+    "required": ["earthquake", "6.3", "Japan"],
+    "prohibited": ["casualties", "evacuation", "aftershocks", "damage"]
+  },
+  "wildfire": {
+    "title": "Wildfire — Test Region",
+    "type": "WILDFIRE",
+    "location": "Test Region",
+    "metrics": {},
+    "sources": ["NASA EONET"],
+    "prohibited": ["acres", "containment"]
+  },
+  "cyclone": {
+    "title": "Cyclone — Test Coast",
+    "type": "TROPICAL_CYCLONE",
+    "location": "Test Coast",
+    "metrics": {"alertLevel": "Orange"},
+    "sources": ["GDACS"],
+    "required": ["Orange"],
+    "prohibited": ["Category 1", "Category 2", "Category 3", "Category 4", "Category 5"]
+  }
+}

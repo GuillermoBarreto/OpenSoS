@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
@@ -11,11 +12,22 @@ from .models import IncidentCollection, IncidentStatus, IncidentType, ProviderNa
 from .providers import EONETProvider, GDACSProvider, USGSProvider
 from .services import IncidentRepository, SyncService
 from .datetime_utils import ensure_utc
+from .intelligence.provider import OpenAIProvider
+from .intelligence.service import IntelligenceError, IntelligenceService
 
 settings = get_settings()
 client = httpx.AsyncClient(timeout=settings.provider_timeout_seconds, follow_redirects=True, headers={"User-Agent": "OpenSoS/1.0 (+https://github.com/GuillermoBarreto/OpenSoS)"})
 repository = IncidentRepository()
 sync_service = SyncService([USGSProvider(client), EONETProvider(client), GDACSProvider(client)], repository)
+
+
+def create_intelligence_service() -> IntelligenceService:
+    if settings.ai_provider.casefold() == "openai" and settings.ai_api_key:
+        return IntelligenceService(OpenAIProvider(settings.ai_api_key, settings.ai_model, settings.ai_timeout_seconds), settings.ai_timeout_seconds)
+    return IntelligenceService(None, settings.ai_timeout_seconds)
+
+
+intelligence_service = create_intelligence_service()
 
 
 async def sync_loop(provider, interval: int):
@@ -34,7 +46,12 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="OpenSoS API", version="1.0.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list, allow_methods=["GET"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list, allow_methods=["GET", "POST"], allow_headers=["*"])
+
+
+@app.exception_handler(IntelligenceError)
+async def intelligence_error_handler(_, exc: IntelligenceError):
+    return JSONResponse(status_code=exc.status_code, content={"error": {"code": exc.code, "message": exc.message}})
 
 
 @app.get("/health")
@@ -98,3 +115,19 @@ async def incident(incident_id: str):
     found = next((item for item in repository.all() if item.id == incident_id), None)
     if not found: raise HTTPException(404, "Incident not found")
     return found.model_dump(by_alias=True, mode="json")
+
+
+@app.get("/api/intelligence/status")
+async def intelligence_status():
+    provider = intelligence_service.provider
+    return {"available": intelligence_service.available, "configured": intelligence_service.available,
+            "provider": provider.name if provider else None, "model": provider.model if provider else None}
+
+
+@app.post("/api/intelligence/incidents/{incident_id}/brief")
+async def incident_brief(incident_id: str):
+    found = next((item for item in repository.all() if item.id == incident_id), None)
+    if not found:
+        raise IntelligenceError("INCIDENT_NOT_FOUND", "Incident not found.", 404)
+    brief = await intelligence_service.generate(found)
+    return brief.model_dump(by_alias=True, mode="json")

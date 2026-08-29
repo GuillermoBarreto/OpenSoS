@@ -12,6 +12,10 @@ OpenSoS is open source first, community driven, privacy first, transparent, acce
 - `backend/`: FastAPI, Pydantic models, isolated USGS/EONET/GDACS adapters, provider-specific sync loops, last-known-good memory cache, filtering, and conservative deduplication.
 - `docs/`: API, architecture, deployment, testing, and security decisions.
 
+## Milestone 1.5B — Grounded incident briefs
+
+Selected incidents can optionally receive a concise, manually requested AI brief. FastAPI constructs a minimal context from normalized incident facts and provenance, invokes a vendor-neutral intelligence service, validates structured output and source names, and caches unchanged briefs in memory. The map and inspector remain fully functional without AI configuration. See [intelligence](docs/intelligence.md).
+
 ## Milestone 1.5A — Map UX & Incident Experience
 
 The map now distinguishes every incident type with a shared color and symbol language while severity independently controls marker size, stroke, and priority rings. Compact cluster previews expose type breakdowns and high/critical totals. A collapsible legend, real category counts, time filters, regional navigation, event previews, provider detail panels, and type-aware incident inspector make the live dataset easier to interpret.
@@ -52,8 +56,8 @@ npm run dev
 ## Environment
 
 - Frontend: `VITE_API_BASE_URL` (default `http://localhost:8000`).
-- Backend: `APP_ENV`, comma-separated `CORS_ORIGINS`, `PROVIDER_TIMEOUT_SECONDS`, `USGS_SYNC_SECONDS`, `EONET_SYNC_SECONDS`, `GDACS_SYNC_SECONDS`.
-- No provider secrets or API keys are required.
+- Backend: `APP_ENV`, comma-separated `CORS_ORIGINS`, provider sync settings, and optional `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY`, `AI_TIMEOUT_SECONDS`.
+- Incident providers require no secrets. AI remains disabled unless its backend provider and key are configured.
 
 ## Testing
 
@@ -71,6 +75,7 @@ Deploy `frontend/` to Vercel with `VITE_API_BASE_URL` set to the Render API URL.
 ## Known limitations
 
 - Cache is process-local and cold after restart; no history is retained.
+- AI brief caching is process-local and is lost on restart or split across replicas.
 - EONET generally has INFO severity because it has no equivalent alert scale.
 - Deduplication only handles close, near-simultaneous cross-provider earthquakes.
 - Polygon data is preserved by the API but not yet rendered for every provider.
@@ -80,6 +85,7 @@ Deploy `frontend/` to Vercel with `VITE_API_BASE_URL` set to the Render API URL.
 
 - **Milestone 1 — Global crisis foundation:** official feeds, operational map, provenance, health, caching, filtering, and tests.
 - **Milestone 1.5A — Map UX & Incident Experience:** visual language, cluster intelligence, time/region navigation, previews, provider transparency, and cold-start resilience.
+- **Milestone 1.5B — AI Backend & Incident Briefs:** optional grounded summaries with validated provenance and explicit generation.
 - **Milestone 2 — Community Reporting & Verification:** community submissions and transparent verification. Not implemented yet.
 - Later: PostGIS history, public APIs, richer geospatial layers, and incident timelines.
 
