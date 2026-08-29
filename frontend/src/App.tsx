@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import { IncidentMap } from './IncidentMap'
 import type { Incident, IncidentCollection, IncidentType, ProviderStatus, Severity } from './types'
 import './App.css'
@@ -40,5 +41,6 @@ export default function App() {
     <section className="map-stage" id="map"><IncidentMap incidents={incidents} selectedId={selectedId} onSelect={id => selectIncident(id)} /><div className="search"><label htmlFor="event-search">Search incidents</label><input id="event-search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Japan, hurricane, M6.5, event ID…" /></div>{selected && <Inspector incident={selected} onClose={() => selectIncident(null)} />}</section>
     <form className="filters" aria-label="Incident filters"><div className="type-filters">{TYPES.map(item => <button type="button" aria-pressed={type === item.value} key={item.value} onClick={() => setType(item.value)}>{item.label}</button>)}</div><label>Severity<select value={severity} onChange={e => setSeverity(e.target.value as Severity | 'ALL')}><option>ALL</option><option>CRITICAL</option><option>HIGH</option><option>MODERATE</option><option>LOW</option><option>INFO</option></select></label><label>Source<select value={provider} onChange={e => setProvider(e.target.value)}><option>ALL</option><option>USGS</option><option>NASA EONET</option><option>GDACS</option></select></label></form>
     <footer id="about">OpenSoS aggregates information from public data providers for situational awareness. Information may be delayed, incomplete, or revised. OpenSoS is not an emergency dispatch service. Map © OpenStreetMap contributors.</footer>
+    <Analytics />
   </main>
 }
