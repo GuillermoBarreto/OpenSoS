@@ -12,6 +12,14 @@ OpenSoS is open source first, community driven, privacy first, transparent, acce
 - `backend/`: FastAPI, Pydantic models, isolated USGS/EONET/GDACS adapters, provider-specific sync loops, last-known-good memory cache, filtering, and conservative deduplication.
 - `docs/`: API, architecture, deployment, testing, and security decisions.
 
+## Milestone 1.5A — Map UX & Incident Experience
+
+The map now distinguishes every incident type with a shared color and symbol language while severity independently controls marker size, stroke, and priority rings. Compact cluster previews expose type breakdowns and high/critical totals. A collapsible legend, real category counts, time filters, regional navigation, event previews, provider detail panels, and type-aware incident inspector make the live dataset easier to interpret.
+
+Only the selected marker uses continuous animation, with high/critical events receiving static outer emphasis. Motion is disabled when `prefers-reduced-motion` is active. Rendering remains in MapLibre sources/layers—OpenSoS does not create thousands of DOM markers.
+
+Render cold starts use staged retries at roughly 2, 5, and 10 seconds while clearly reporting that the data service is waking. Persistent failure becomes an explicit retryable error after the retry budget.
+
 The backend uses an in-memory repository for Milestone 1. This is deliberate: there is no write workflow yet, and PostgreSQL/PostGIS would add deployment weight without improving the read-only feed. The repository boundary can be replaced when durable incident history and community reports arrive.
 
 ## Official data providers
@@ -71,6 +79,7 @@ Deploy `frontend/` to Vercel with `VITE_API_BASE_URL` set to the Render API URL.
 ## Roadmap
 
 - **Milestone 1 — Global crisis foundation:** official feeds, operational map, provenance, health, caching, filtering, and tests.
+- **Milestone 1.5A — Map UX & Incident Experience:** visual language, cluster intelligence, time/region navigation, previews, provider transparency, and cold-start resilience.
 - **Milestone 2 — Community Reporting & Verification:** community submissions and transparent verification. Not implemented yet.
 - Later: PostGIS history, public APIs, richer geospatial layers, and incident timelines.
 
