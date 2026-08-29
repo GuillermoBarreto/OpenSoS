@@ -1,5 +1,7 @@
 # Architecture and incident model
 
+Optional incident intelligence follows `React → FastAPI → IntelligenceService → AIProvider`. It consumes one normalized incident and attached provenance only; it does not alter provider ingestion or map rendering. See [intelligence](intelligence.md).
+
 Provider adapters own fetching, validation, normalization, and provider-specific errors. `SyncService` writes successful snapshots through `IncidentRepository`; failed refreshes mark health `DEGRADED` but retain the prior snapshot. Routes consume only normalized incidents.
 
 The typed model contains IDs, type, title/description, normalized severity/status, location, optional GeoJSON, UTC timestamps, sources, type-specific metrics, provenance, and creation time. Provider-only fields stay in metrics/provenance.

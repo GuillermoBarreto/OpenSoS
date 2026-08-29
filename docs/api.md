@@ -1,5 +1,12 @@
 # HTTP API
 
+## Intelligence
+
+- `GET /api/intelligence/status` reports optional AI availability and provider/model, never credentials.
+- `POST /api/intelligence/incidents/{incident_id}/brief` manually generates or retrieves a cached structured brief.
+
+AI failures return `{"error":{"code":"...","message":"..."}}` without provider traces or secrets.
+
 - `GET /health` — application health, not provider health.
 - `GET /api/incidents` — incidents plus provider state.
 - `GET /api/incidents/{id}` — one incident or 404.
