@@ -10,6 +10,7 @@ from .config import get_settings
 from .models import IncidentCollection, IncidentStatus, IncidentType, ProviderName, Severity
 from .providers import EONETProvider, GDACSProvider, USGSProvider
 from .services import IncidentRepository, SyncService
+from .datetime_utils import ensure_utc
 
 settings = get_settings()
 client = httpx.AsyncClient(timeout=settings.provider_timeout_seconds, follow_redirects=True, headers={"User-Agent": "OpenSoS/1.0 (+https://github.com/GuillermoBarreto/OpenSoS)"})
@@ -62,8 +63,12 @@ async def incidents(type: IncidentType | None = None, severity: Severity | None 
     if severity: values = [i for i in values if i.severity == severity]
     if status: values = [i for i in values if i.status == status]
     if provider: values = [i for i in values if any(s.provider == provider for s in i.sources)]
-    if start: values = [i for i in values if i.started_at >= start]
-    if end: values = [i for i in values if i.started_at <= end]
+    if start:
+        start = ensure_utc(start)
+        values = [i for i in values if i.started_at >= start]
+    if end:
+        end = ensure_utc(end)
+        values = [i for i in values if i.started_at <= end]
     if bounds:
         values = [i for i in values if bounds[0] <= i.location.longitude <= bounds[2] and bounds[1] <= i.location.latitude <= bounds[3]]
     if search:

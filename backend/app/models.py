@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
+
+from .datetime_utils import ensure_utc
 
 
 class IncidentType(StrEnum):
@@ -44,7 +46,7 @@ class Location(BaseModel):
     region: str | None = None
     place_name: str | None = Field(None, alias="placeName")
 
-    model_config = {"populate_by_name": True}
+    model_config = {"populate_by_name": True, "validate_assignment": True}
 
 
 class IncidentSource(BaseModel):
@@ -54,7 +56,12 @@ class IncidentSource(BaseModel):
     updated_at: datetime = Field(alias="updatedAt")
     original_severity: str | None = Field(None, alias="originalSeverity")
 
-    model_config = {"populate_by_name": True}
+    @field_validator("updated_at")
+    @classmethod
+    def timestamp_must_be_utc(cls, value: datetime) -> datetime:
+        return ensure_utc(value)
+
+    model_config = {"populate_by_name": True, "validate_assignment": True}
 
 
 class Incident(BaseModel):
@@ -75,7 +82,12 @@ class Incident(BaseModel):
     provenance: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), alias="createdAt")
 
-    model_config = {"populate_by_name": True}
+    @field_validator("started_at", "updated_at", "ended_at", "created_at")
+    @classmethod
+    def timestamps_must_be_utc(cls, value: datetime | None) -> datetime | None:
+        return ensure_utc(value) if value is not None else None
+
+    model_config = {"populate_by_name": True, "validate_assignment": True}
 
 
 class ProviderStatus(BaseModel):
@@ -87,7 +99,12 @@ class ProviderStatus(BaseModel):
     data_age_seconds: int | None = Field(None, alias="dataAgeSeconds")
     incident_count: int = Field(0, alias="incidentCount")
 
-    model_config = {"populate_by_name": True}
+    @field_validator("last_successful_sync", "last_attempt")
+    @classmethod
+    def timestamps_must_be_utc(cls, value: datetime | None) -> datetime | None:
+        return ensure_utc(value) if value is not None else None
+
+    model_config = {"populate_by_name": True, "validate_assignment": True}
 
 
 class IncidentCollection(BaseModel):
@@ -96,5 +113,10 @@ class IncidentCollection(BaseModel):
     generated_at: datetime = Field(alias="generatedAt")
     providers: list[ProviderStatus]
 
-    model_config = {"populate_by_name": True}
+    @field_validator("generated_at")
+    @classmethod
+    def timestamp_must_be_utc(cls, value: datetime) -> datetime:
+        return ensure_utc(value)
+
+    model_config = {"populate_by_name": True, "validate_assignment": True}
 
