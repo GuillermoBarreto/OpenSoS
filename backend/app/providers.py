@@ -5,6 +5,7 @@ from typing import Any
 import httpx
 
 from .models import Incident, IncidentSource, IncidentStatus, IncidentType, Location, ProviderName, Severity
+from .datetime_utils import parse_utc_datetime
 
 
 def utc_from_ms(value: int | float) -> datetime:
@@ -12,9 +13,9 @@ def utc_from_ms(value: int | float) -> datetime:
 
 
 def parse_time(value: str | None) -> datetime:
-    if not value:
-        return datetime.now(timezone.utc)
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    # EONET and GDACS publish operational timestamps in UTC; some payloads omit
+    # the explicit Z suffix, so offset-less values are attached to UTC here.
+    return parse_utc_datetime(value)
 
 
 def earthquake_severity(magnitude: float | None) -> Severity:

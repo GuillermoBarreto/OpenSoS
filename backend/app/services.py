@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from .models import Incident, ProviderName, ProviderStatus
 from .providers import Provider
+from .datetime_utils import ensure_utc
 
 
 class IncidentRepository:
@@ -27,8 +28,22 @@ def distance_km(a: Incident, b: Incident) -> float:
 
 def deduplicate(incidents: list[Incident]) -> list[Incident]:
     """Only merge cross-provider earthquakes within 30 km and 10 minutes."""
+    # Models enforce UTC at ingestion. Re-normalizing copies here protects the
+    # aggregation path from legacy cache objects or mutations that bypassed
+    # Pydantic validation.
+    normalized: list[Incident] = []
+    for value in incidents:
+        incident = value.model_copy(deep=True)
+        incident.started_at = ensure_utc(incident.started_at)
+        incident.updated_at = ensure_utc(incident.updated_at)
+        incident.created_at = ensure_utc(incident.created_at)
+        if incident.ended_at is not None:
+            incident.ended_at = ensure_utc(incident.ended_at)
+        for source in incident.sources:
+            source.updated_at = ensure_utc(source.updated_at)
+        normalized.append(incident)
     result: list[Incident] = []
-    for incident in sorted(incidents, key=lambda item: item.updated_at, reverse=True):
+    for incident in sorted(normalized, key=lambda item: item.updated_at, reverse=True):
         match = next((item for item in result if item.type == incident.type and item.type.value == "EARTHQUAKE"
                       and not {s.provider for s in item.sources}.intersection(s.provider for s in incident.sources)
                       and abs((item.started_at - incident.started_at).total_seconds()) <= 600
