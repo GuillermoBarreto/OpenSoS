@@ -5,6 +5,7 @@ import App from './App'
 
 vi.mock('./IncidentMap', () => ({ IncidentMap: ({ incidents, onSelect, onPreview }: { incidents: typeof response.incidents; onSelect: (id: string) => void; onPreview: (item: typeof incident | null) => void }) => <div aria-label="Mock map">{incidents.map(item => <button key={item.id} onMouseEnter={() => onPreview(item)} onFocus={() => onPreview(item)} onClick={() => onSelect(item.id)}>{item.title}</button>)}</div> }))
 const incident = { id: 'usgs-test', externalIds: ['test'], type: 'EARTHQUAKE', title: 'M6.7 earthquake — Japan', severity: 'HIGH', status: 'ACTIVE', location: { latitude: 35, longitude: 140, placeName: 'Japan' }, startedAt: '2026-08-29T10:00:00Z', updatedAt: '2026-08-29T10:05:00Z', sources: [{ provider: 'USGS', externalId: 'test', url: 'https://earthquake.usgs.gov/test', updatedAt: '2026-08-29T10:05:00Z' }], metrics: { magnitude: 6.7, depthKm: 38 }, provenance: {}, createdAt: '2026-08-29T10:00:00Z' }
+const secondIncident = { ...incident, id: 'usgs-second', externalIds: ['second'], title: 'M5.2 earthquake — Chile', location: { latitude: -33, longitude: -71, placeName: 'Chile' } }
 const response = { incidents: [incident], total: 1, generatedAt: '2026-08-29T10:06:00Z', providers: [{ provider: 'USGS', status: 'LIVE', incidentCount: 1 }, { provider: 'GDACS', status: 'DEGRADED', lastError: 'timeout', incidentCount: 0 }] }
 const aiBrief = { headline: 'Earthquake near Japan', summary: 'A magnitude 6.7 earthquake is reported near Japan.', keyPoints: ['USGS reports a depth of 38 km.'], sourcesUsed: ['USGS'], generatedAt: '2026-08-29T10:07:00Z', cached: false }
 const mockAI = (post: () => Promise<unknown> = async () => ({ ok: true, json: async () => aiBrief }), available = true) => vi.stubGlobal('fetch', vi.fn((input: string | URL, options?: RequestInit) => {
@@ -85,4 +86,20 @@ test('shows a safe provider error and supports manual retry', async () => {
   await user.click(await screen.findByRole('button', { name: 'Generate AI brief' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('Unable to generate brief right now.')
   await user.click(screen.getByRole('button', { name: 'Retry' })); expect(await screen.findByText(aiBrief.summary)).toBeInTheDocument(); expect(calls).toBe(2)
+})
+
+test('does not carry an AI brief into a newly selected incident', async () => {
+  mockAI(); const user = userEvent.setup(); const twoIncidentResponse = { ...response, incidents: [incident, secondIncident], total: 2 }
+  vi.mocked(fetch).mockImplementation((input: string | URL | Request, options?: RequestInit) => {
+    const url = String(input)
+    if (url.includes('/api/intelligence/status')) return Promise.resolve({ ok: true, json: async () => ({ available: true, configured: true }) } as Response)
+    if (options?.method === 'POST') return Promise.resolve({ ok: true, json: async () => aiBrief } as Response)
+    return Promise.resolve({ ok: true, json: async () => twoIncidentResponse } as Response)
+  })
+  render(<App />); await user.click(await screen.findByRole('button', { name: /M6.7 earthquake/i }))
+  await user.click(await screen.findByRole('button', { name: 'Generate AI brief' }))
+  expect(await screen.findByText(aiBrief.summary)).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: /M5.2 earthquake/i }))
+  expect(screen.queryByText(aiBrief.summary)).not.toBeInTheDocument()
+  expect(await screen.findByRole('button', { name: 'Generate AI brief' })).toBeInTheDocument()
 })
