@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections import OrderedDict
 from datetime import datetime, timezone
 from time import monotonic
 
@@ -32,9 +33,11 @@ def build_context(incident: Incident) -> IncidentBriefContext:
 
 
 class IntelligenceService:
-    def __init__(self, provider: AIProvider | None, timeout_seconds: float = 20):
+    def __init__(self, provider: AIProvider | None, timeout_seconds: float = 20, cache_max_entries: int = 256):
         self.provider, self.timeout_seconds = provider, timeout_seconds
-        self._cache: dict[tuple[str, str, str], AIIncidentBrief] = {}
+        self.cache_max_entries = max(1, cache_max_entries)
+        self._cache: OrderedDict[tuple[str, str, str], AIIncidentBrief] = OrderedDict()
+        self._inflight: dict[tuple[str, str, str], asyncio.Task[AIIncidentBrief]] = {}
 
     @property
     def available(self) -> bool:
@@ -47,8 +50,25 @@ class IntelligenceService:
         key = (incident.id, incident.updated_at.isoformat(), self.provider.model)
         cached = self._cache.get(key)
         if cached:
+            self._cache.move_to_end(key)
             logger.info("AI brief cache hit incident=%s provider=%s model=%s", incident.id, self.provider.name, self.provider.model)
             return cached.model_copy(update={"cached": True})
+        task = self._inflight.get(key)
+        if task:
+            logger.info("AI brief request joined incident=%s provider=%s model=%s", incident.id, self.provider.name, self.provider.model)
+            return (await asyncio.shield(task)).model_copy(update={"cached": True})
+        task = asyncio.create_task(self._generate_uncached(incident, context, key))
+        self._inflight[key] = task
+        def clear_inflight(completed: asyncio.Task[AIIncidentBrief]) -> None:
+            if self._inflight.get(key) is task:
+                self._inflight.pop(key, None)
+            if not completed.cancelled():
+                completed.exception()  # Mark background failures as observed if the requester disconnected.
+        task.add_done_callback(clear_inflight)
+        return await asyncio.shield(task)
+
+    async def _generate_uncached(self, incident: Incident, context: IncidentBriefContext,
+                                 key: tuple[str, str, str]) -> AIIncidentBrief:
         started = monotonic()
         try:
             raw = await asyncio.wait_for(self.provider.generate_incident_brief(context), timeout=self.timeout_seconds)
@@ -65,6 +85,9 @@ class IntelligenceService:
         self._validate_grounding(generated, context)
         brief = AIIncidentBrief(**generated.model_dump(by_alias=True), generatedAt=datetime.now(timezone.utc))
         self._cache[key] = brief
+        self._cache.move_to_end(key)
+        while len(self._cache) > self.cache_max_entries:
+            self._cache.popitem(last=False)
         logger.info("AI brief generated incident=%s provider=%s model=%s duration_ms=%d cache=miss",
                     incident.id, self.provider.name, self.provider.model, (monotonic() - started) * 1000)
         return brief
