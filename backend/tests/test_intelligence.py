@@ -83,6 +83,31 @@ async def test_cache_hit_and_invalidation(incident_factory):
 
 
 @pytest.mark.asyncio
+async def test_concurrent_requests_share_one_provider_call(incident_factory):
+    provider = FakeProvider(valid_result(), delay=.01)
+    service = IntelligenceService(provider)
+    first, second = await asyncio.gather(service.generate(incident_factory()), service.generate(incident_factory()))
+    assert provider.calls == 1
+    assert sorted([first.cached, second.cached]) == [False, True]
+
+
+@pytest.mark.asyncio
+async def test_cache_evicts_least_recently_used_brief(incident_factory):
+    provider = FakeProvider(valid_result())
+    service = IntelligenceService(provider, cache_max_entries=2)
+    first = incident_factory()
+    second = incident_factory(); second.id = "two"
+    third = incident_factory(); third.id = "three"
+    await service.generate(first)
+    await service.generate(second)
+    await service.generate(first)  # Keep the first incident hot.
+    await service.generate(third)
+    assert len(service._cache) == 2
+    assert not (await service.generate(second)).cached
+    assert provider.calls == 4
+
+
+@pytest.mark.asyncio
 async def test_rejects_source_not_attached_to_incident(incident_factory):
     with pytest.raises(IntelligenceError) as raised:
         await IntelligenceService(FakeProvider(valid_result(["GDACS"]))).generate(incident_factory())
