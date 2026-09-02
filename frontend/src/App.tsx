@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Analytics } from '@vercel/analytics/react'
-import { IncidentMap, type ClusterPreview } from './IncidentMap'
+import { IncidentMap } from './LazyIncidentMap'
+import type { ClusterPreview } from './IncidentMap'
 import { EVENT_VISUALS, SEVERITIES, TYPE_ORDER, isWithinTime, relativeTime, type Region, type TimeRange } from './eventVisuals'
 import type { AIIncidentBrief, Incident, IncidentCollection, IncidentType, IntelligenceStatus, ProviderStatus, Severity } from './types'
 import './App.css'
