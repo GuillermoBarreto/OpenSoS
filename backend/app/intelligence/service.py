@@ -33,9 +33,11 @@ def build_context(incident: Incident) -> IncidentBriefContext:
 
 
 class IntelligenceService:
-    def __init__(self, provider: AIProvider | None, timeout_seconds: float = 20, cache_max_entries: int = 256):
+    def __init__(self, provider: AIProvider | None, timeout_seconds: float = 20, cache_max_entries: int = 256,
+                 max_concurrent_requests: int = 4):
         self.provider, self.timeout_seconds = provider, timeout_seconds
         self.cache_max_entries = max(1, cache_max_entries)
+        self._provider_slots = asyncio.Semaphore(max(1, max_concurrent_requests))
         self._cache: OrderedDict[tuple[str, str, str], AIIncidentBrief] = OrderedDict()
         self._inflight: dict[tuple[str, str, str], asyncio.Task[AIIncidentBrief]] = {}
 
@@ -71,7 +73,8 @@ class IntelligenceService:
                                  key: tuple[str, str, str]) -> AIIncidentBrief:
         started = monotonic()
         try:
-            raw = await asyncio.wait_for(self.provider.generate_incident_brief(context), timeout=self.timeout_seconds)
+            async with self._provider_slots:
+                raw = await asyncio.wait_for(self.provider.generate_incident_brief(context), timeout=self.timeout_seconds)
             generated = GeneratedBrief.model_validate(raw)
         except TimeoutError as exc:
             logger.warning("AI brief timeout incident=%s provider=%s model=%s", incident.id, self.provider.name, self.provider.model)

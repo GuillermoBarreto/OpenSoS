@@ -13,4 +13,4 @@ AI failures return `{"error":{"code":"...","message":"..."}}` without provider t
 - `GET /api/incidents/summary` — real totals and freshness.
 - `GET /api/providers/status` — attempts, success, error, age, count.
 
-Incident queries accept enum `type`, `severity`, `status`, `provider`; ISO-8601 `start`/`end`; `search`; `limit` (1–5000); and `bbox=minLon,minLat,maxLon,maxLat`. Bad or unordered coordinates return 422. OpenAPI is at `/docs`.
+Incident queries accept enum `type`, `severity`, `status`, `provider`; ISO-8601 `start`/`end`; `search`; `limit` (1–5000); and `bbox=minLon,minLat,maxLon,maxLat`. Bad or unordered coordinates and reversed time ranges return 422. OpenAPI is at `/docs`.

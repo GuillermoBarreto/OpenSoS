@@ -21,6 +21,15 @@ def test_bbox_validation():
     assert client.get("/api/incidents?bbox=20,10,10,30").status_code == 422
 
 
+def test_time_range_validation():
+    response = TestClient(app).get(
+        "/api/incidents",
+        params={"start": "2026-08-30T00:00:00Z", "end": "2026-08-29T00:00:00Z"},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "start must be before or equal to end"
+
+
 def test_production_incident_call_with_all_provider_fixtures():
     client_stub = None
     usgs = USGSProvider(client_stub).normalize({"features": [{"id": "mixed-usgs", "geometry": {"type": "Point", "coordinates": [140, 35, 10]}, "properties": {"mag": 5, "place": "Japan", "time": 1788000000000, "updated": 1788000060000, "url": "https://earthquake.usgs.gov/event/mixed-usgs"}}]})
