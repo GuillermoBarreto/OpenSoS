@@ -6,7 +6,7 @@ Only normalized incident fields, scalar metrics, and attached source records are
 
 Responses contain a headline (120 characters maximum), concise summary, at most five key points, attached source names, and a server-generated UTC timestamp. Post-validation rejects source names not attached to the incident. Failures use safe codes (`AI_NOT_CONFIGURED`, `AI_UNAVAILABLE`, `AI_TIMEOUT`, `AI_INVALID_RESPONSE`, and `INCIDENT_NOT_FOUND`) while technical detail remains in backend logs.
 
-Briefs use a 256-entry in-memory least-recently-used cache keyed by incident ID, incident `updatedAt`, and model. A changed incident generates a new brief, and concurrent requests for the same unchanged incident share one provider call. Cache state is lost on Render restart and is not shared across replicas. Generation is manual and has no automatic retry.
+Briefs use a 256-entry in-memory least-recently-used cache keyed by incident ID, incident `updatedAt`, and model. A changed incident generates a new brief, and concurrent requests for the same unchanged incident share one provider call. Provider calls across different incidents are capped by `AI_MAX_CONCURRENT_REQUESTS` (default 4). Cache state is lost on Render restart and is not shared across replicas. Generation is manual and has no automatic retry.
 
 Configure only the backend/Render service:
 
@@ -15,6 +15,7 @@ AI_PROVIDER=openai
 AI_MODEL=gpt-4.1-mini
 AI_API_KEY=
 AI_TIMEOUT_SECONDS=20
+AI_MAX_CONCURRENT_REQUESTS=4
 ```
 
 With a missing key or provider, OpenSoS starts normally and the inspector reports that briefs are unavailable. Never place `AI_API_KEY` in Vercel or a `VITE_` variable.

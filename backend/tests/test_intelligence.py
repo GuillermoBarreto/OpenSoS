@@ -30,6 +30,20 @@ class FakeProvider:
         return self.result
 
 
+class ConcurrencyTrackingProvider(FakeProvider):
+    def __init__(self, result):
+        super().__init__(result)
+        self.active = self.peak_active = 0
+
+    async def generate_incident_brief(self, context):
+        self.calls += 1
+        self.active += 1
+        self.peak_active = max(self.peak_active, self.active)
+        await asyncio.sleep(.01)
+        self.active -= 1
+        return self.result
+
+
 def valid_result(sources=None):
     return GeneratedBrief(headline="Earthquake near Japan", summary="A magnitude 6.1 earthquake is reported in Test Region.",
                           keyPoints=["USGS reports magnitude 6.1."], sourcesUsed=sources or ["USGS"])
@@ -89,6 +103,22 @@ async def test_concurrent_requests_share_one_provider_call(incident_factory):
     first, second = await asyncio.gather(service.generate(incident_factory()), service.generate(incident_factory()))
     assert provider.calls == 1
     assert sorted([first.cached, second.cached]) == [False, True]
+
+
+@pytest.mark.asyncio
+async def test_provider_calls_are_concurrency_limited(incident_factory):
+    provider = ConcurrencyTrackingProvider(valid_result())
+    service = IntelligenceService(provider, max_concurrent_requests=2)
+    incidents = []
+    for number in range(5):
+        incident = incident_factory()
+        incident.id = f"incident-{number}"
+        incidents.append(incident)
+
+    await asyncio.gather(*(service.generate(incident) for incident in incidents))
+
+    assert provider.calls == 5
+    assert provider.peak_active == 2
 
 
 @pytest.mark.asyncio

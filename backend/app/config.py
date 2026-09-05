@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     ai_model: str = "gpt-4.1-mini"
     ai_api_key: str = ""
     ai_timeout_seconds: float = 20
+    ai_max_concurrent_requests: int = 4
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

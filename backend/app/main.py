@@ -23,7 +23,11 @@ sync_service = SyncService([USGSProvider(client), EONETProvider(client), GDACSPr
 
 def create_intelligence_service() -> IntelligenceService:
     if settings.ai_provider.casefold() == "openai" and settings.ai_api_key:
-        return IntelligenceService(OpenAIProvider(settings.ai_api_key, settings.ai_model, settings.ai_timeout_seconds), settings.ai_timeout_seconds)
+        return IntelligenceService(
+            OpenAIProvider(settings.ai_api_key, settings.ai_model, settings.ai_timeout_seconds),
+            settings.ai_timeout_seconds,
+            max_concurrent_requests=settings.ai_max_concurrent_requests,
+        )
     return IntelligenceService(None, settings.ai_timeout_seconds)
 
 
@@ -75,6 +79,8 @@ async def incidents(type: IncidentType | None = None, severity: Severity | None 
                     start: datetime | None = None, end: datetime | None = None, bbox: str | None = None,
                     search: str | None = Query(None, max_length=100), limit: int = Query(1000, ge=1, le=5000)):
     bounds = parse_bbox(bbox)
+    if start and end and ensure_utc(start) > ensure_utc(end):
+        raise HTTPException(422, "start must be before or equal to end")
     values = repository.all()
     if type: values = [i for i in values if i.type == type]
     if severity: values = [i for i in values if i.severity == severity]

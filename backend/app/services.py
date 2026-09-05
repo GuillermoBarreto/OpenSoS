@@ -61,14 +61,13 @@ class SyncService:
     def __init__(self, providers: list[Provider], repository: IncidentRepository):
         self.providers, self.repository = providers, repository
         self.statuses = {p.name: ProviderStatus(provider=p.name, status="SYNCING") for p in providers}
-        self._lock = asyncio.Lock()
+        self._locks = {p.name: asyncio.Lock() for p in providers}
 
     async def sync_all(self) -> None:
-        async with self._lock:
-            await asyncio.gather(*(self._sync(provider) for provider in self.providers))
+        await asyncio.gather(*(self.sync_provider(provider) for provider in self.providers))
 
     async def sync_provider(self, provider: Provider) -> None:
-        async with self._lock:
+        async with self._locks[provider.name]:
             await self._sync(provider)
 
     async def _sync(self, provider: Provider) -> None:
@@ -78,7 +77,7 @@ class SyncService:
         try:
             incidents = await provider.fetch()
             self.repository.replace_provider(provider.name, incidents)
-            status.status, status.last_successful_sync, status.last_error = "LIVE", now, None
+            status.status, status.last_successful_sync, status.last_error = "LIVE", datetime.now(timezone.utc), None
             status.incident_count = len(incidents)
         except Exception as exc:
             status.status, status.last_error = "DEGRADED", str(exc)[:240]

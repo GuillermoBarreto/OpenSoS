@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import App from './App'
@@ -16,7 +16,7 @@ const mockAI = (post: () => Promise<unknown> = async () => ({ ok: true, json: as
 }))
 
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(response) })); history.replaceState({}, '', '/') })
-afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
 test('shows loading then real provider state and telemetry', async () => {
   render(<App />); expect(screen.getByText(/waking opensos data service/i)).toBeInTheDocument()
@@ -61,6 +61,22 @@ test('provider status opens sanitized operational details', async () => {
 test('shows a Render cold-start state before the request resolves', () => {
   vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {}))); render(<App />)
   expect(screen.getByText(/WAKING OPENSOS DATA SERVICE/i)).toBeInTheDocument(); expect(screen.getByText(/up to a minute/i)).toBeInTheDocument()
+})
+
+test('restarts loading after automatic retries are exhausted', async () => {
+  vi.useFakeTimers()
+  const fetchMock = vi.fn().mockRejectedValue(new Error('offline'))
+  vi.stubGlobal('fetch', fetchMock)
+  render(<App />)
+  while (!screen.queryByRole('button', { name: 'Try again' }) && fetchMock.mock.calls.length < 5) {
+    await act(async () => { await vi.runOnlyPendingTimersAsync() })
+  }
+  const retry = screen.getByRole('button', { name: 'Try again' })
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => response })
+  fireEvent.click(retry)
+  await act(async () => { await vi.runOnlyPendingTimersAsync() })
+  expect(screen.getByText(/1 visible events/i)).toBeInTheDocument()
+  expect(fetchMock).toHaveBeenCalledTimes(5)
 })
 
 test('shows AI unavailable without hiding normal incident details', async () => {

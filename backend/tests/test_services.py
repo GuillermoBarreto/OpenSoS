@@ -1,4 +1,6 @@
+import asyncio
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -59,4 +61,91 @@ async def test_provider_failure_keeps_last_known_good(incident_factory):
         await service.sync_all()
     assert service.statuses[ProviderName.USGS].status == "DEGRADED"
     assert len(repository.all()) == 1
+
+
+@pytest.mark.asyncio
+async def test_slow_provider_does_not_block_other_providers(incident_factory):
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def slow_fetch():
+        started.set()
+        await release.wait()
+        return []
+
+    slow = AsyncMock(name=ProviderName.GDACS)
+    slow.name = ProviderName.GDACS
+    slow.fetch.side_effect = slow_fetch
+    fast = AsyncMock()
+    fast.name = ProviderName.USGS
+    fast.fetch.return_value = [incident_factory()]
+    repository = IncidentRepository()
+    service = SyncService([slow, fast], repository)
+    task = asyncio.create_task(service.sync_provider(slow))
+    try:
+        await asyncio.wait_for(started.wait(), timeout=1)
+        await asyncio.wait_for(service.sync_provider(fast), timeout=1)
+        assert not task.done()
+        assert service.statuses[ProviderName.USGS].status == "LIVE"
+        assert len(repository.all()) == 1
+    finally:
+        release.set()
+        await task
+
+
+@pytest.mark.asyncio
+async def test_bulk_and_individual_syncs_serialize_same_provider():
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def fetch():
+        started.set()
+        await release.wait()
+        return []
+
+    provider = AsyncMock()
+    provider.name = ProviderName.USGS
+    provider.fetch.side_effect = fetch
+    service = SyncService([provider], IncidentRepository())
+    individual = asyncio.create_task(service.sync_provider(provider))
+    bulk = None
+    try:
+        await asyncio.wait_for(started.wait(), timeout=1)
+        bulk = asyncio.create_task(service.sync_all())
+        # Let both the bulk task and its gathered provider task run.
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        assert provider.fetch.await_count == 1
+    finally:
+        release.set()
+        await individual
+        if bulk is not None:
+            await bulk
+    assert provider.fetch.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_successful_sync_records_completion_time(monkeypatch):
+    attempt = datetime(2026, 8, 29, 12, tzinfo=timezone.utc)
+    completed = datetime(2026, 8, 29, 12, 1, tzinfo=timezone.utc)
+
+    class Clock:
+        current = attempt
+
+        @classmethod
+        def now(cls, tz):
+            return cls.current
+
+    async def fetch():
+        Clock.current = completed
+        return []
+
+    monkeypatch.setattr("app.services.datetime", Clock)
+    provider = AsyncMock()
+    provider.name = ProviderName.USGS
+    provider.fetch.side_effect = fetch
+    service = SyncService([provider], IncidentRepository())
+    await service.sync_provider(provider)
+    status = service.statuses[ProviderName.USGS]
+    assert status.last_attempt == attempt
+    assert status.last_successful_sync == completed
+    assert status.data_age_seconds == 0
 
