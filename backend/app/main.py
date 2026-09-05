@@ -42,6 +42,7 @@ async def sync_loop(provider, interval: int):
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    await sync_service.sync_all()
     intervals = [settings.usgs_sync_seconds, settings.eonet_sync_seconds, settings.gdacs_sync_seconds]
     tasks = [asyncio.create_task(sync_loop(provider, interval)) for provider, interval in zip(sync_service.providers, intervals)]
     yield
