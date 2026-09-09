@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import maplibregl, { type GeoJSONSource, type Map } from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
+import type { GeoJSONSource, Map, MapMouseEvent } from 'maplibre-gl'
 import type { FeatureCollection, Point } from 'geojson'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { EVENT_VISUALS, type Region } from './eventVisuals'
@@ -8,7 +9,7 @@ import type { Incident } from './types'
 interface Props { incidents: Incident[]; selectedId: string | null; region: Region; onSelect: (id: string) => void; onPreview: (incident: Incident | null) => void; onClusterPreview: (preview: ClusterPreview | null) => void }
 export interface ClusterPreview { total: number; severe: number; breakdown: { label: string; count: number }[] }
 const REGIONS: Record<Region, { center: [number, number]; zoom: number }> = { GLOBAL: { center: [5, 20], zoom: 1.35 }, NORTH_AMERICA: { center: [-105, 42], zoom: 2.4 }, SOUTH_AMERICA: { center: [-61, -18], zoom: 2.4 }, EUROPE: { center: [15, 52], zoom: 3.2 }, AFRICA: { center: [20, 2], zoom: 2.5 }, ASIA: { center: [95, 35], zoom: 2.2 }, OCEANIA: { center: [140, -25], zoom: 2.7 } }
-const style: maplibregl.StyleSpecification = { version: 8, glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf', sources: { carto: { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors © CARTO' } }, layers: [{ id: 'space', type: 'background', paint: { 'background-color': '#050b12' } }, { id: 'carto', type: 'raster', source: 'carto', paint: { 'raster-saturation': -0.65, 'raster-brightness-min': -0.28, 'raster-brightness-max': 0.34, 'raster-contrast': 0.42, 'raster-opacity': 0.86 } }] }
+const style: maplibregl.StyleSpecification = { version: 8, glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf', sources: { carto: { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors © CARTO' } }, layers: [{ id: 'space', type: 'background', paint: { 'background-color': '#050b12' } }, { id: 'carto', type: 'raster', source: 'carto', paint: { 'raster-saturation': -0.65, 'raster-brightness-max': 0.34, 'raster-contrast': 0.42, 'raster-opacity': 0.86 } }] }
 
 export function IncidentMap({ incidents, selectedId, region, onSelect, onPreview, onClusterPreview }: Props) {
   const container = useRef<HTMLDivElement>(null), mapRef = useRef<Map | null>(null), incidentsRef = useRef(incidents)
@@ -30,11 +31,11 @@ export function IncidentMap({ incidents, selectedId, region, onSelect, onPreview
       map.addLayer({ id: 'selected-ring', type: 'circle', source: 'incidents', filter: ['==', ['get', 'id'], ''], paint: { 'circle-radius': 20, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#d8fffb', 'circle-stroke-width': 2, 'circle-opacity': .95 } })
       map.addLayer({ id: 'events', type: 'circle', source: 'incidents', filter: ['!', ['has', 'point_count']], paint: { 'circle-radius': ['match', ['get', 'severity'], 'CRITICAL', 11, 'HIGH', 9, 'MODERATE', 7.5, 'LOW', 6.5, 5.5], 'circle-color': ['get', 'color'], 'circle-stroke-color': '#d8fffb', 'circle-stroke-width': ['match', ['get', 'severity'], 'CRITICAL', 3, 'HIGH', 2.5, 1.5], 'circle-opacity': .96 } })
       map.addLayer({ id: 'event-symbols', type: 'symbol', source: 'incidents', filter: ['!', ['has', 'point_count']], layout: { 'text-field': ['get', 'symbol'], 'text-size': ['match', ['get', 'severity'], 'CRITICAL', 12, 'HIGH', 11, 9], 'text-allow-overlap': true }, paint: { 'text-color': '#10171d' } })
-      map.on('click', 'clusters', async event => { const feature = map.queryRenderedFeatures(event.point, { layers: ['clusters'] })[0]; const source = map.getSource('incidents') as GeoJSONSource; const zoom = await source.getClusterExpansionZoom(Number(feature.properties?.cluster_id)); map.easeTo({ center: (feature.geometry as Point).coordinates as [number, number], zoom }) })
-      map.on('click', 'events', event => { const id = event.features?.[0]?.properties?.id; if (id) callbacks.current.onSelect(id) })
-      map.on('mousemove', 'events', event => { const id = event.features?.[0]?.properties?.id; callbacks.current.onPreview(incidentsRef.current.find(item => item.id === id) || null) })
+      map.on('click', 'clusters', async (event: MapMouseEvent) => { const feature = map.queryRenderedFeatures(event.point, { layers: ['clusters'] })[0]; const source = map.getSource('incidents') as GeoJSONSource; const zoom = await source.getClusterExpansionZoom(Number(feature.properties?.cluster_id)); map.easeTo({ center: (feature.geometry as Point).coordinates as [number, number], zoom }) })
+      map.on('click', 'events', (event: MapMouseEvent) => { const id = event.features?.[0]?.properties?.id; if (id) callbacks.current.onSelect(id) })
+      map.on('mousemove', 'events', (event: MapMouseEvent) => { const id = event.features?.[0]?.properties?.id; callbacks.current.onPreview(incidentsRef.current.find(item => item.id === id) || null) })
       map.on('mouseleave', 'events', () => callbacks.current.onPreview(null))
-      map.on('mousemove', 'clusters', event => { const props = event.features?.[0]?.properties || {}; const breakdown = Object.entries(EVENT_VISUALS).map(([type, visual]) => ({ label: visual.label, count: Number(props[`count_${type}`] || 0) })).filter(item => item.count).sort((a,b) => b.count-a.count); callbacks.current.onClusterPreview({ total: Number(props.point_count || 0), severe: Number(props.severe || 0), breakdown }) })
+      map.on('mousemove', 'clusters', (event: MapMouseEvent) => { const props = event.features?.[0]?.properties || {}; const breakdown = Object.entries(EVENT_VISUALS).map(([type, visual]) => ({ label: visual.label, count: Number(props[`count_${type}`] || 0) })).filter(item => item.count).sort((a,b) => b.count-a.count); callbacks.current.onClusterPreview({ total: Number(props.point_count || 0), severe: Number(props.severe || 0), breakdown }) })
       map.on('mouseleave', 'clusters', () => callbacks.current.onClusterPreview(null))
       for (const layer of ['clusters', 'events']) { map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer'); map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '') }
     }); mapRef.current = map
