@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import * as maplibregl from 'maplibre-gl'
-import type { GeoJSONSource, Map, MapMouseEvent } from 'maplibre-gl'
+import type { GeoJSONSource, Map, MapLayerMouseEvent } from 'maplibre-gl'
 import type { FeatureCollection, Point } from 'geojson'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { EVENT_VISUALS, type Region } from './eventVisuals'
@@ -31,11 +31,11 @@ export function IncidentMap({ incidents, selectedId, region, onSelect, onPreview
       map.addLayer({ id: 'selected-ring', type: 'circle', source: 'incidents', filter: ['==', ['get', 'id'], ''], paint: { 'circle-radius': 20, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#d8fffb', 'circle-stroke-width': 2, 'circle-opacity': .95 } })
       map.addLayer({ id: 'events', type: 'circle', source: 'incidents', filter: ['!', ['has', 'point_count']], paint: { 'circle-radius': ['match', ['get', 'severity'], 'CRITICAL', 11, 'HIGH', 9, 'MODERATE', 7.5, 'LOW', 6.5, 5.5], 'circle-color': ['get', 'color'], 'circle-stroke-color': '#d8fffb', 'circle-stroke-width': ['match', ['get', 'severity'], 'CRITICAL', 3, 'HIGH', 2.5, 1.5], 'circle-opacity': .96 } })
       map.addLayer({ id: 'event-symbols', type: 'symbol', source: 'incidents', filter: ['!', ['has', 'point_count']], layout: { 'text-field': ['get', 'symbol'], 'text-size': ['match', ['get', 'severity'], 'CRITICAL', 12, 'HIGH', 11, 9], 'text-allow-overlap': true }, paint: { 'text-color': '#10171d' } })
-      map.on('click', 'clusters', async (event: MapMouseEvent) => { const feature = map.queryRenderedFeatures(event.point, { layers: ['clusters'] })[0]; const source = map.getSource('incidents') as GeoJSONSource; const zoom = await source.getClusterExpansionZoom(Number(feature.properties?.cluster_id)); map.easeTo({ center: (feature.geometry as Point).coordinates as [number, number], zoom }) })
-      map.on('click', 'events', (event: MapMouseEvent) => { const id = event.features?.[0]?.properties?.id; if (id) callbacks.current.onSelect(id) })
-      map.on('mousemove', 'events', (event: MapMouseEvent) => { const id = event.features?.[0]?.properties?.id; callbacks.current.onPreview(incidentsRef.current.find(item => item.id === id) || null) })
+      map.on('click', 'clusters', async (event: MapLayerMouseEvent) => { const feature = map.queryRenderedFeatures(event.point, { layers: ['clusters'] })[0]; const source = map.getSource('incidents') as GeoJSONSource; const zoom = await source.getClusterExpansionZoom(Number(feature.properties?.cluster_id)); map.easeTo({ center: (feature.geometry as Point).coordinates as [number, number], zoom }) })
+      map.on('click', 'events', (event: MapLayerMouseEvent) => { const id = event.features?.[0]?.properties?.id; if (id) callbacks.current.onSelect(id) })
+      map.on('mousemove', 'events', (event: MapLayerMouseEvent) => { const id = event.features?.[0]?.properties?.id; callbacks.current.onPreview(incidentsRef.current.find(item => item.id === id) || null) })
       map.on('mouseleave', 'events', () => callbacks.current.onPreview(null))
-      map.on('mousemove', 'clusters', (event: MapMouseEvent) => { const props = event.features?.[0]?.properties || {}; const breakdown = Object.entries(EVENT_VISUALS).map(([type, visual]) => ({ label: visual.label, count: Number(props[`count_${type}`] || 0) })).filter(item => item.count).sort((a,b) => b.count-a.count); callbacks.current.onClusterPreview({ total: Number(props.point_count || 0), severe: Number(props.severe || 0), breakdown }) })
+      map.on('mousemove', 'clusters', (event: MapLayerMouseEvent) => { const props = event.features?.[0]?.properties || {}; const breakdown = Object.entries(EVENT_VISUALS).map(([type, visual]) => ({ label: visual.label, count: Number(props[`count_${type}`] || 0) })).filter(item => item.count).sort((a,b) => b.count-a.count); callbacks.current.onClusterPreview({ total: Number(props.point_count || 0), severe: Number(props.severe || 0), breakdown }) })
       map.on('mouseleave', 'clusters', () => callbacks.current.onClusterPreview(null))
       for (const layer of ['clusters', 'events']) { map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer'); map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '') }
     }); mapRef.current = map

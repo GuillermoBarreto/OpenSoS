@@ -50,7 +50,9 @@ def deduplicate(incidents: list[Incident]) -> list[Incident]:
                       and distance_km(item, incident) <= 30), None)
         if match:
             match.external_ids = list(dict.fromkeys(match.external_ids + incident.external_ids))
-            match.sources.extend(source for source in incident.sources if source.external_id not in {s.external_id for s in match.sources})
+            match.sources.extend(source for source in incident.sources
+                                 if (source.provider, source.external_id) not in
+                                 {(s.provider, s.external_id) for s in match.sources})
             match.updated_at = max(match.updated_at, incident.updated_at)
             match.provenance["deduplicated"] = True
         else: result.append(incident.model_copy(deep=True))
