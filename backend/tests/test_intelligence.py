@@ -97,6 +97,24 @@ async def test_cache_hit_and_invalidation(incident_factory):
 
 
 @pytest.mark.asyncio
+async def test_cache_invalidates_when_facts_or_sources_change_without_timestamp(incident_factory):
+    incident = incident_factory()
+    provider = FakeProvider(valid_result())
+    service = IntelligenceService(provider)
+    await service.generate(incident)
+    original_timestamp = incident.updated_at
+
+    incident.metrics["magnitude"] = 6.5
+    assert not (await service.generate(incident)).cached
+    incident.sources.extend(incident_factory("gdacs", ProviderName.GDACS).sources)
+    assert not (await service.generate(incident)).cached
+    assert (await service.generate(incident)).cached
+    assert provider.calls == 3
+    assert incident.updated_at == original_timestamp
+    assert provider.context.sources == ["USGS", "GDACS"]
+
+
+@pytest.mark.asyncio
 async def test_concurrent_requests_share_one_provider_call(incident_factory):
     provider = FakeProvider(valid_result(), delay=.01)
     service = IntelligenceService(provider)

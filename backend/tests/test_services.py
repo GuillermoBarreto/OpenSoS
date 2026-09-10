@@ -20,6 +20,19 @@ def test_conservative_deduplication(incident_factory):
     assert any(len(item.sources) == 2 for item in merged)
 
 
+def test_deduplication_preserves_same_external_id_from_different_providers(incident_factory):
+    usgs = incident_factory("shared", ProviderName.USGS)
+    gdacs = incident_factory("shared", ProviderName.GDACS)
+
+    merged = deduplicate([usgs, gdacs])
+
+    assert len(merged) == 1
+    assert {(source.provider, source.external_id) for source in merged[0].sources} == {
+        (ProviderName.USGS, "shared"), (ProviderName.GDACS, "shared")
+    }
+    assert len(usgs.sources) == len(gdacs.sources) == 1
+
+
 def test_deduplication_normalizes_mixed_naive_and_aware_datetimes(incident_factory):
     aware = incident_factory("aware", ProviderName.USGS, minutes=0)
     naive = incident_factory("naive", ProviderName.GDACS, lat=10.01, lon=20.01, minutes=5)
