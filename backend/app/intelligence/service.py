@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import hashlib
+import json
 from collections import OrderedDict
 from datetime import datetime, timezone
 from time import monotonic
@@ -49,7 +51,11 @@ class IntelligenceService:
         if not self.provider:
             raise IntelligenceError("AI_NOT_CONFIGURED", "AI incident briefs are not configured.")
         context = build_context(incident)
-        key = (incident.id, incident.updated_at.isoformat(), self.provider.model)
+        # Merged provenance or corrected facts can change without updatedAt moving.
+        fingerprint = hashlib.sha256(json.dumps(
+            context.model_dump(mode="json"), sort_keys=True, separators=(",", ":")
+        ).encode()).hexdigest()
+        key = (incident.id, fingerprint, self.provider.model)
         cached = self._cache.get(key)
         if cached:
             self._cache.move_to_end(key)
