@@ -8,6 +8,8 @@ Responses contain a headline (120 characters maximum), concise summary, at most 
 
 Briefs use a 256-entry in-memory least-recently-used cache keyed by incident ID, a SHA-256 fingerprint of the normalized brief context, and model. Corrected facts or merged sources invalidate the cache even when `updatedAt` is unchanged. Concurrent requests for the same unchanged incident share one provider call. Provider calls across different incidents are capped by `AI_MAX_CONCURRENT_REQUESTS` (default 4). Cache state is lost on Render restart and is not shared across replicas. Generation is manual and has no automatic retry.
 
+At most 32 distinct generations may be active or queued per process. Additional distinct requests receive `AI_BUSY` (503); cache hits and requests joining an existing generation remain available. `AI_TIMEOUT_SECONDS` covers both waiting for a provider slot and the provider call. Timed-out generations are removed so callers can retry.
+
 Configure only the backend/Render service:
 
 ```env
