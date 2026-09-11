@@ -36,9 +36,10 @@ def build_context(incident: Incident) -> IncidentBriefContext:
 
 class IntelligenceService:
     def __init__(self, provider: AIProvider | None, timeout_seconds: float = 20, cache_max_entries: int = 256,
-                 max_concurrent_requests: int = 4):
+                 max_concurrent_requests: int = 4, max_pending_requests: int = 32):
         self.provider, self.timeout_seconds = provider, timeout_seconds
         self.cache_max_entries = max(1, cache_max_entries)
+        self.max_pending_requests = max(1, max_pending_requests)
         self._provider_slots = asyncio.Semaphore(max(1, max_concurrent_requests))
         self._cache: OrderedDict[tuple[str, str, str], AIIncidentBrief] = OrderedDict()
         self._inflight: dict[tuple[str, str, str], asyncio.Task[AIIncidentBrief]] = {}
@@ -65,6 +66,8 @@ class IntelligenceService:
         if task:
             logger.info("AI brief request joined incident=%s provider=%s model=%s", incident.id, self.provider.name, self.provider.model)
             return (await asyncio.shield(task)).model_copy(update={"cached": True})
+        if len(self._inflight) >= self.max_pending_requests:
+            raise IntelligenceError("AI_BUSY", "AI brief capacity is full. Please retry later.", 503)
         task = asyncio.create_task(self._generate_uncached(incident, context, key))
         self._inflight[key] = task
         def clear_inflight(completed: asyncio.Task[AIIncidentBrief]) -> None:
@@ -79,8 +82,9 @@ class IntelligenceService:
                                  key: tuple[str, str, str]) -> AIIncidentBrief:
         started = monotonic()
         try:
-            async with self._provider_slots:
-                raw = await asyncio.wait_for(self.provider.generate_incident_brief(context), timeout=self.timeout_seconds)
+            async with asyncio.timeout(self.timeout_seconds):
+                async with self._provider_slots:
+                    raw = await self.provider.generate_incident_brief(context)
             generated = GeneratedBrief.model_validate(raw)
         except TimeoutError as exc:
             logger.warning("AI brief timeout incident=%s provider=%s model=%s", incident.id, self.provider.name, self.provider.model)
