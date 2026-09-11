@@ -72,6 +72,48 @@ async def test_timeout_is_safe(incident_factory):
 
 
 @pytest.mark.asyncio
+async def test_queue_timeout_cleans_up_and_allows_retry(incident_factory):
+    provider = FakeProvider(valid_result())
+    service = IntelligenceService(provider, timeout_seconds=.01, max_concurrent_requests=1)
+    await service._provider_slots.acquire()
+    try:
+        with pytest.raises(IntelligenceError) as raised:
+            await asyncio.wait_for(service.generate(incident_factory()), timeout=1)
+        assert raised.value.code == "AI_TIMEOUT"
+        assert provider.calls == 0
+        assert not service._inflight
+    finally:
+        service._provider_slots.release()
+    assert not (await service.generate(incident_factory())).cached
+
+
+@pytest.mark.asyncio
+async def test_saturation_preserves_cache_and_coalescing(incident_factory):
+    provider = FakeProvider(valid_result())
+    service = IntelligenceService(provider, max_pending_requests=1, max_concurrent_requests=1)
+    cached = incident_factory("cached")
+    await service.generate(cached)
+    await service._provider_slots.acquire()
+    pending = asyncio.create_task(service.generate(incident_factory()))
+    joined = None
+    try:
+        await asyncio.sleep(0)
+        assert (await service.generate(cached)).cached
+        with pytest.raises(IntelligenceError) as raised:
+            await service.generate(incident_factory("other"))
+        assert raised.value.code == "AI_BUSY" and raised.value.status_code == 503
+        joined = asyncio.create_task(service.generate(incident_factory()))
+        await asyncio.sleep(0)
+        assert len(service._inflight) == 1
+    finally:
+        service._provider_slots.release()
+        results = await asyncio.gather(pending, *([joined] if joined else []))
+    assert sorted(brief.cached for brief in results) == [False, True]
+    assert provider.calls == 2
+    assert not service._inflight
+
+
+@pytest.mark.asyncio
 async def test_provider_failure_is_safe(incident_factory):
     with pytest.raises(IntelligenceError) as raised:
         await IntelligenceService(FakeProvider(error=RuntimeError("secret provider detail"))).generate(incident_factory())
