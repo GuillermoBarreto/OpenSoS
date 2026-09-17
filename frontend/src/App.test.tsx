@@ -119,3 +119,42 @@ test('does not carry an AI brief into a newly selected incident', async () => {
   expect(screen.queryByText(aiBrief.summary)).not.toBeInTheDocument()
   expect(await screen.findByRole('button', { name: 'Generate AI brief' })).toBeInTheDocument()
 })
+
+
+test('stalled requests exhaust the retry budget and allow recovery', async () => {
+  vi.useFakeTimers()
+  const fetchMock = vi.fn((_input: unknown, options?: RequestInit) => new Promise((_resolve, reject) => {
+    options?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+  }))
+  vi.stubGlobal('fetch', fetchMock)
+  render(<App />)
+  await act(async () => { await vi.advanceTimersByTimeAsync(57000) })
+  expect(fetchMock).toHaveBeenCalledTimes(4)
+  expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => response }))
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+  await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+  expect(screen.getByText(/1 visible events/i)).toBeInTheDocument()
+})
+
+test('unmount cancels scheduled retries', async () => {
+  vi.useFakeTimers()
+  const fetchMock = vi.fn().mockRejectedValue(new Error('offline'))
+  vi.stubGlobal('fetch', fetchMock)
+  const view = render(<App />)
+  await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+  view.unmount()
+  expect(vi.getTimerCount()).toBe(0)
+  await act(async () => { await vi.advanceTimersByTimeAsync(60000) })
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+})
+
+test('unknown provider age is not displayed as fresh data', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ...response, providers: [{ ...response.providers[1], dataAgeSeconds: null }] }) }))
+  const user = userEvent.setup()
+  render(<App />)
+  await user.click(await screen.findByRole('button', { name: /GDACS DEGRADED/i }))
+  expect(screen.queryByText('Data age')).not.toBeInTheDocument()
+  expect(screen.queryByText('< 1 minute')).not.toBeInTheDocument()
+})
