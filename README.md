@@ -22,7 +22,7 @@ The map now distinguishes every incident type with a shared color and symbol lan
 
 Only the selected marker uses continuous animation, with high/critical events receiving static outer emphasis. Motion is disabled when `prefers-reduced-motion` is active. Rendering remains in MapLibre sources/layers—OpenSoS does not create thousands of DOM markers.
 
-Render cold starts use staged retries at roughly 2, 5, and 10 seconds while clearly reporting that the data service is waking. Persistent failure becomes an explicit retryable error after the retry budget.
+Render cold starts use staged retries at roughly 2, 5, and 10 seconds while clearly reporting that the data service is waking. Each request has a 10-second timeout, including response body loading. Persistent failure becomes an explicit retryable error after the retry budget (roughly one minute for stalled requests). Leaving the page cancels pending requests and retries.
 
 The backend uses an in-memory repository for Milestone 1. This is deliberate: there is no write workflow yet, and PostgreSQL/PostGIS would add deployment weight without improving the read-only feed. The repository boundary can be replaced when durable incident history and community reports arrive.
 
