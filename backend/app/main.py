@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .models import IncidentCollection, IncidentStatus, IncidentType, ProviderName, Severity
+from .models import Incident, IncidentCollection, IncidentStatus, IncidentType, ProviderName, Severity
 from .providers import EONETProvider, GDACSProvider, USGSProvider
 from .services import IncidentRepository, SyncService
 from .datetime_utils import ensure_utc
@@ -29,6 +29,11 @@ def create_intelligence_service() -> IntelligenceService:
             max_concurrent_requests=settings.ai_max_concurrent_requests,
         )
     return IntelligenceService(None, settings.ai_timeout_seconds)
+
+
+def find_incident(incident_id: str) -> Incident | None:
+    """Return the incident with ``incident_id``, or None when absent."""
+    return next((item for item in repository.all() if item.id == incident_id), None)
 
 
 intelligence_service = create_intelligence_service()
@@ -119,7 +124,7 @@ async def provider_status():
 
 @app.get("/api/incidents/{incident_id}")
 async def incident(incident_id: str):
-    found = next((item for item in repository.all() if item.id == incident_id), None)
+    found = find_incident(incident_id)
     if not found: raise HTTPException(404, "Incident not found")
     return found.model_dump(by_alias=True, mode="json")
 
@@ -133,7 +138,7 @@ async def intelligence_status():
 
 @app.post("/api/intelligence/incidents/{incident_id}/brief")
 async def incident_brief(incident_id: str):
-    found = next((item for item in repository.all() if item.id == incident_id), None)
+    found = find_incident(incident_id)
     if not found:
         raise IntelligenceError("INCIDENT_NOT_FOUND", "Incident not found.", 404)
     brief = await intelligence_service.generate(found)
