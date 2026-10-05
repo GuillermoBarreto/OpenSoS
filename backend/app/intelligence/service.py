@@ -107,5 +107,7 @@ class IntelligenceService:
 
     @staticmethod
     def _validate_grounding(brief: GeneratedBrief, context: IncidentBriefContext) -> None:
+        if not brief.sources_used:
+            raise IntelligenceError("AI_INVALID_RESPONSE", "The AI provider returned a brief with no cited sources.", 502)
         if not set(brief.sources_used).issubset(context.sources):
             raise IntelligenceError("AI_INVALID_RESPONSE", "The AI provider returned unsupported sources.", 502)
