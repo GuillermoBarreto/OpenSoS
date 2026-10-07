@@ -52,6 +52,9 @@ async def lifespan(_: FastAPI):
     tasks = [asyncio.create_task(sync_loop(provider, interval)) for provider, interval in zip(sync_service.providers, intervals)]
     yield
     for task in tasks: task.cancel()
+    # Await the cancelled tasks so they are never destroyed while pending,
+    # which would hide unretrieved exceptions behind "Task was destroyed" warnings.
+    await asyncio.gather(*tasks, return_exceptions=True)
     await client.aclose()
 
 
