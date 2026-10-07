@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
@@ -16,6 +17,7 @@ from .intelligence.provider import OpenAIProvider
 from .intelligence.service import IntelligenceError, IntelligenceService
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 client = httpx.AsyncClient(timeout=settings.provider_timeout_seconds, follow_redirects=True, headers={"User-Agent": "OpenSoS/1.0 (+https://github.com/GuillermoBarreto/OpenSoS)"})
 repository = IncidentRepository()
 sync_service = SyncService([USGSProvider(client), EONETProvider(client), GDACSProvider(client)], repository)
@@ -41,7 +43,13 @@ intelligence_service = create_intelligence_service()
 
 async def sync_loop(provider, interval: int):
     while True:
-        await sync_service.sync_provider(provider)
+        try:
+            await sync_service.sync_provider(provider)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # A provider bug must not silently retire its whole sync loop.
+            logger.exception("Unexpected error syncing %s; retrying", provider.name)
         await asyncio.sleep(interval)
 
 
