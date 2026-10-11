@@ -25,8 +25,17 @@ export const relativeTime = (date: string) => {
   return formatter.format(Math.round(seconds / 86400), 'day')
 }
 
+const TIME_WINDOWS_MS: Record<Exclude<TimeRange, 'all'>, number> = {
+  '1h': 3_600_000,
+  '6h': 21_600_000,
+  '24h': 86_400_000,
+  '7d': 604_800_000,
+}
+
 export const isWithinTime = (incident: Incident, range: TimeRange, now = Date.now()) => {
   if (range === 'all') return true
-  const milliseconds = { '1h': 3_600_000, '6h': 21_600_000, '24h': 86_400_000, '7d': 604_800_000 }[range]
+  // Typed as Record<Exclude<TimeRange, 'all'>, number> so the compiler rejects
+  // a missing entry: an undefined window would silently hide every incident.
+  const milliseconds = TIME_WINDOWS_MS[range]
   return new Date(incident.updatedAt).getTime() >= now - milliseconds
 }
