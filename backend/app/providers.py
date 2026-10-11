@@ -146,6 +146,10 @@ class GDACSProvider(Provider):
         elif geometry.get("type") == "Polygon" and coords: point = coords[0][0]
         else: point = coords
         if not event_id or not isinstance(point, list) or len(point) < 2: return None
+        if not (props.get("fromdate") or props.get("datemodified")):
+            # parse_time(None) falls back to "now": a dateless feature would be
+            # silently recorded as a brand-new incident. Skip it instead.
+            return None
         started = parse_time(props.get("fromdate") or props.get("datemodified"))
         updated = parse_time(props.get("datemodified") or props.get("fromdate"))
         alert = props.get("alertlevel")
