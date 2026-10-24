@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { FeatureCollection } from 'geojson'
 import type { Incident } from './types'
 
-const state = vi.hoisted(() => ({ maps: [] as FakeMap[] }))
+const state = vi.hoisted(() => ({ maps: [] as FakeMap[], workerUrl: '' }))
 class FakeMap {
   handlers = new Map<string, (() => void)[]>()
   layers: Record<string, { id: string; type: string; layout?: Record<string, unknown> }> = {}
@@ -11,7 +11,12 @@ class FakeMap {
   source = { setData: vi.fn((data: FeatureCollection) => { this.data = data }) }
   loaded = vi.fn(() => false)
   options: { style: string }
-  constructor(options: { style: string }) { this.options = options; state.maps.push(this) }
+  workerUrl: unknown
+  constructor(options: { style: string }) {
+    this.options = options
+    this.workerUrl = state.workerUrl
+    state.maps.push(this)
+  }
   on(event: string, ...args: unknown[]) {
     if (args.length === 1) this.handlers.set(event, [...(this.handlers.get(event) || []), args[0] as () => void])
   }
@@ -29,6 +34,7 @@ class FakeMap {
 vi.mock('maplibre-gl', () => ({
   Map: class { constructor(options: FakeMap['options']) { return new FakeMap(options) } },
   NavigationControl: class {}, AttributionControl: class {},
+  setWorkerUrl: (url: string) => { state.workerUrl = url },
 }))
 import { IncidentMap } from './IncidentMap'
 
@@ -43,6 +49,11 @@ beforeEach(() => {
   vi.stubGlobal('matchMedia', () => ({ matches: true }))
 })
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+
+it('configures a bundled JavaScript worker before creating a map', () => {
+  render(<IncidentMap {...props} incidents={[]} />)
+  expect(state.maps[0].workerUrl).toEqual(expect.stringMatching(/maplibre-gl-worker.*\.m?js(?:\?.*)?$/))
+})
 
 it('initializes layers and the latest GeoJSON before basemap tiles or glyphs finish', () => {
   const view = render(<IncidentMap {...props} incidents={[]} />)
