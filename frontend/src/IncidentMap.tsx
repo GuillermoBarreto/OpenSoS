@@ -1,10 +1,14 @@
 import { useEffect, useRef } from 'react'
 import * as maplibregl from 'maplibre-gl'
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import type { GeoJSONSource, Map, MapLayerMouseEvent } from 'maplibre-gl'
 import type { FeatureCollection, Point } from 'geojson'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { EVENT_VISUALS, type Region } from './eventVisuals'
 import type { Incident } from './types'
+
+// MapLibre v6 ships its worker separately; let Vite bundle and fingerprint it.
+maplibregl.setWorkerUrl(workerUrl)
 
 interface Props { incidents: Incident[]; selectedId: string | null; region: Region; onSelect: (id: string) => void; onPreview: (incident: Incident | null) => void; onClusterPreview: (preview: ClusterPreview | null) => void }
 export interface ClusterPreview { total: number; severe: number; breakdown: { label: string; count: number }[] }

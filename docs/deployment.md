@@ -12,6 +12,13 @@ Set root `frontend`, framework Vite, build `npm run build`, output `dist`, and `
 
 ### Basemap and incident rendering
 
+MapLibre v6 requires a separate worker in Vite builds. `IncidentMap.tsx` imports
+`maplibre-gl-worker.mjs?worker&url` and calls `setWorkerUrl` before creating a map,
+so Vite emits a fingerprinted JavaScript worker under `dist/assets/`. Keep this
+setup when updating MapLibre. Without it, the default worker path is missing and
+Vercel's SPA rewrite serves HTML instead, leaving the map black even when the
+incident API and map controls work.
+
 The map uses [OpenFreeMap's Dark style](https://tiles.openfreemap.org/styles/dark).
 The [public service explicitly permits keyless use](https://openfreemap.org/),
 including commercial use. No tile credential or additional Vercel environment
